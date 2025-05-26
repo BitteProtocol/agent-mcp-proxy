@@ -5,18 +5,57 @@ import { z } from 'zod';
 
 export const runtime = 'nodejs'
 
-const getAgentData = async (agentId: string) => {
+interface AgentData {
+    tools: McpToolDefinition[];
+    name: string;
+    description: string;
+    instructions: string;
+}
 
-    const agentData = await fetch(`https://${agentId}/.well-known/ai-plugin.json`);
-    const agentDataJson = await agentData.json();
-    const { name, description, assistant } = agentDataJson["x-mb"]
-    const { instructions } = assistant
+const getAgentData = async (agentId: string): Promise<AgentData> => {
+    if (!agentId) {
+        throw new Error('Agent ID is required');
+    }
 
-    const openApiTools = await getToolsFromOpenApi(`https://${agentId}/.well-known/ai-plugin.json`, {
-        baseUrl: `https://${agentId}`,
-    });
+    try {
+        const wellKnownUrl = `https://${agentId}/.well-known/ai-plugin.json`;
+        const agentData = await fetch(wellKnownUrl);
 
-    return { tools: openApiTools, name, description, instructions };
+        if (!agentData.ok) {
+            throw new Error(`Failed to fetch agent data: ${agentData.status} ${agentData.statusText}`);
+        }
+
+        const agentDataJson = await agentData.json();
+
+        if (!agentDataJson["x-mb"]) {
+            throw new Error('Invalid agent data: missing x-mb field');
+        }
+
+        const { name, description, assistant } = agentDataJson["x-mb"];
+        
+        if (!assistant || !assistant.instructions) {
+            throw new Error('Invalid agent data: missing assistant instructions');
+        }
+
+        const { instructions } = assistant;
+
+        const openApiTools = await getToolsFromOpenApi(wellKnownUrl, {
+            baseUrl: `https://${agentId}`,
+        });
+
+        if (!openApiTools || !Array.isArray(openApiTools)) {
+            throw new Error('Failed to fetch OpenAPI tools');
+        }
+
+        return { 
+            tools: openApiTools, 
+            name: name || 'Unknown Agent',
+            description: description || 'No description available',
+            instructions: instructions || 'No instructions available'
+        };
+    } catch (error) {
+        throw new Error(`Error fetching agent data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
 }
 
 const createHandler = async (args: any) => {
