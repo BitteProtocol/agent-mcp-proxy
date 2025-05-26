@@ -5,22 +5,49 @@ import { z } from 'zod';
 
 export const runtime = 'nodejs'
 
-const getTools = async (agentId: string) => {
+const getAgentData = async (agentId: string) => {
+
+    const agentData = await fetch(`https://${agentId}/.well-known/ai-plugin.json`);
+    const agentDataJson = await agentData.json();
+    const { name, description, assistant } = agentDataJson["x-mb"]
+    const { instructions } = assistant
+
     const openApiTools = await getToolsFromOpenApi(`https://${agentId}/.well-known/ai-plugin.json`, {
         baseUrl: `https://${agentId}`,
     });
 
-    return openApiTools;
+    return { tools: openApiTools, name, description, instructions };
 }
 
 const createHandler = async (args: any) => {
     console.log("Creating handler with args:", args);
-    const tools = await getTools(args.agentId);
+    const { tools, instructions } = await getAgentData(args.agentId);
     const baseUrl = `https://${args.agentId}`;
     const originalHeaders = args.originalHeaders || {};
 
     return createMcpHandler(async (server) => {
         console.log("MCP server initializing...");
+
+        server.resource("agentMetadata", `https://${args.agentId}/.well-known/ai-plugin.json`, () => {
+            return {
+                contents: [{
+                    uri: `https://${args.agentId}/.well-known/ai-plugin.json`,
+                    text: "The agent's OpenAPI specification and metadata",
+                    mimeType: "application/json"
+                }]
+            };
+        });
+
+        server.prompt("instructions", "Instructions for how to use the agent", (args) => {
+            return {
+                messages: [
+                    {
+                        role: "assistant",
+                        content: { type: "text", text: instructions }
+                    }
+                ]
+            }
+        });
 
         tools.forEach((tool: McpToolDefinition) => {
             const {
@@ -57,7 +84,6 @@ const createHandler = async (args: any) => {
                             schemaShape[key] = zodField;
                         }
                     }
-                    // Add more type handling as needed
                 });
             }
 
@@ -67,7 +93,7 @@ const createHandler = async (args: any) => {
             server.tool(name, description, schemaShape, async (params: any) => {
                 try {
                     console.log(`Executing tool ${name} with params:`, params);
-                    
+
                     // Construct the URL from pathTemplate and parameters
                     let url = pathTemplate;
                     const queryParams = new URLSearchParams();
@@ -120,12 +146,12 @@ const createHandler = async (args: any) => {
                             const isPathParam = parameters?.some((p: any) => p.name === key && p.in === 'path');
                             const isQueryParam = parameters?.some((p: any) => p.name === key && p.in === 'query');
                             const isHeaderParam = parameters?.some((p: any) => p.name === key && p.in === 'header');
-                            
+
                             if (!isPathParam && !isQueryParam && !isHeaderParam) {
                                 bodyParams[key] = value;
                             }
                         });
-                        
+
                         if (Object.keys(bodyParams).length > 0) {
                             if (requestBodyContentType?.includes('application/json')) {
                                 requestBody = JSON.stringify(bodyParams);
@@ -161,7 +187,7 @@ const createHandler = async (args: any) => {
 
                     const responseText = await response.text();
                     let responseData;
-                    
+
                     try {
                         responseData = JSON.parse(responseText);
                     } catch {
@@ -173,17 +199,17 @@ const createHandler = async (args: any) => {
 
                     if (!response.ok) {
                         return {
-                            content: [{ 
-                                type: "text", 
-                                text: `HTTP Error ${response.status}: ${responseText}` 
+                            content: [{
+                                type: "text",
+                                text: `HTTP Error ${response.status}: ${responseText}`
                             }],
                             isError: true,
                         };
                     }
 
                     return {
-                        content: [{ 
-                            type: "text", 
+                        content: [{
+                            type: "text",
                             text: JSON.stringify(responseData, null, 2)
                         }],
                     };
@@ -191,9 +217,9 @@ const createHandler = async (args: any) => {
                 } catch (error) {
                     console.error(`Error executing tool ${name}:`, error);
                     return {
-                        content: [{ 
-                            type: "text", 
-                            text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` 
+                        content: [{
+                            type: "text",
+                            text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
                         }],
                         isError: true,
                     };
@@ -239,7 +265,7 @@ app.get('*', async (c) => {
     // Extract original headers
     const originalHeaders = Object.fromEntries(c.req.raw.headers.entries());
 
-    const handler = await createHandler({ 
+    const handler = await createHandler({
         agentId: agentId,
         originalHeaders: originalHeaders
     });
@@ -254,7 +280,7 @@ app.post('*', async (c) => {
     // Extract original headers
     const originalHeaders = Object.fromEntries(c.req.raw.headers.entries());
 
-    const handler = await createHandler({ 
+    const handler = await createHandler({
         agentId: agentId,
         originalHeaders: originalHeaders
     });
@@ -269,7 +295,7 @@ app.delete('*', async (c) => {
     // Extract original headers
     const originalHeaders = Object.fromEntries(c.req.raw.headers.entries());
 
-    const handler = await createHandler({ 
+    const handler = await createHandler({
         agentId: agentId,
         originalHeaders: originalHeaders
     });
