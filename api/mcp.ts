@@ -41,6 +41,7 @@ const getAgentData = async (agentId: string): Promise<AgentData> => {
 
         const openApiTools = await getToolsFromOpenApi(wellKnownUrl, {
             baseUrl: `https://${agentId}`,
+            dereference: true,
         });
 
         if (!openApiTools || !Array.isArray(openApiTools)) {
@@ -101,6 +102,10 @@ const createHandler = async (args: any) => {
                 securityRequirements,
                 operationId
             } = tool
+
+            console.log("=== JSON SCHEMA ===")
+            console.log(inputSchema)
+            console.log("===================")
 
             console.log('Input schema:', inputSchema);
 
