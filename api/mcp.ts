@@ -98,16 +98,10 @@ const createHandler = async (args: any) => {
                 pathTemplate,
                 parameters,
                 executionParameters,
-                requestBodyContentType,
+                requestBodyContentType = "application/json",
                 securityRequirements,
                 operationId
             } = tool
-
-            console.log("=== JSON SCHEMA ===")
-            console.log(inputSchema)
-            console.log("===================")
-
-            console.log('Input schema:', inputSchema);
 
             // Convert JSON schema properties to Zod schema shape
             const schemaShape: Record<string, z.ZodTypeAny> = {};
@@ -117,11 +111,26 @@ const createHandler = async (args: any) => {
                 const required = (inputSchema.required as string[]) || [];
 
                 Object.entries(properties).forEach(([key, prop]) => {
-                    if (typeof prop === 'object' && prop.type === 'string') {
-                        let zodField = z.string();
+                    if (typeof prop === 'object') {
+                        let zodField;
+                        switch (prop.type) {
+                            case 'string':
+                                zodField = z.string();
+                                break;
+                            case 'number':
+                                zodField = z.number();
+                                break;
+                            case 'integer':
+                                zodField = z.number().int();
+                                break;
+                            default:
+                                return; // Skip unsupported types
+                        }
+
                         if (prop.description) {
                             zodField = zodField.describe(prop.description);
                         }
+
                         if (!required.includes(key)) {
                             schemaShape[key] = zodField.optional();
                         } else {
@@ -183,22 +192,31 @@ const createHandler = async (args: any) => {
 
                     // Handle request body for POST/PUT/PATCH requests
                     if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
+                        console.log('Processing request body for method:', method.toUpperCase());
                         // For these methods, put remaining parameters in the body
                         const bodyParams: Record<string, any> = {};
                         Object.entries(params).forEach(([key, value]) => {
-                            // Only include if not already used in path/query/header
+                            // // Only include if not already used in path/query/header
                             const isPathParam = parameters?.some((p: any) => p.name === key && p.in === 'path');
                             const isQueryParam = parameters?.some((p: any) => p.name === key && p.in === 'query');
                             const isHeaderParam = parameters?.some((p: any) => p.name === key && p.in === 'header');
 
-                            if (!isPathParam && !isQueryParam && !isHeaderParam) {
-                                bodyParams[key] = value;
-                            }
+                            console.log(`Parameter ${key}:`, {
+                                value,
+                                isPathParam,
+                                isQueryParam,
+                                isHeaderParam
+                            });
+
+                            bodyParams[key] = value;
                         });
+
+                        console.log('Collected body parameters:', bodyParams);
 
                         if (Object.keys(bodyParams).length > 0) {
                             if (requestBodyContentType?.includes('application/json')) {
                                 requestBody = JSON.stringify(bodyParams);
+                                console.log('Created JSON request body:', requestBody);
                             } else {
                                 // For form data or other content types
                                 const formData = new URLSearchParams();
@@ -208,7 +226,10 @@ const createHandler = async (args: any) => {
                                     }
                                 });
                                 requestBody = formData.toString();
+                                console.log('Created form data request body:', requestBody);
                             }
+                        } else {
+                            console.log('No body parameters to process');
                         }
                     }
 
