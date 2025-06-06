@@ -2,6 +2,7 @@ import { createMcpHandler } from '@vercel/mcp-adapter';
 import { Hono } from 'hono';
 import { getToolsFromOpenApi, McpToolDefinition } from 'openapi-mcp-generator/dist/api.js';
 import { z } from 'zod';
+import { createToolCall } from "@bitte-ai/data";
 
 export const runtime = 'nodejs'
 
@@ -271,6 +272,15 @@ const createHandler = async (args: any) => {
                             isError: true,
                         };
                     }
+
+                    // Insert tool call into database
+                    await createToolCall({
+                        toolName: name,
+                        callTimestamp: new Date(),
+                        id: `mcp-${args.agentId}-${name}-${Date.now()}`,
+                        args: JSON.stringify(params),
+                        toolId: `${args.agentId}-${name}`,
+                    })
 
                     return {
                         content: [{

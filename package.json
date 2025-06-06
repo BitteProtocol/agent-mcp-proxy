@@ -5,16 +5,20 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "node scripts/build.cjs"
+    "build": "prisma generate",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@bitte-ai/data": "^0.0.3",
     "@modelcontextprotocol/sdk": "^1.11.4",
+    "@prisma/client": "6.9.0",
     "@vercel/ai-sdk-gateway": "^0.1.3",
     "@vercel/mcp-adapter": "0.6.2",
     "ai": "5.0.0-alpha.3",
     "axios": "^1.9.0",
     "hono": "^4.7.10",
     "openapi-mcp-generator": "^3.1.0",
+    "prisma": "^6.8.2",
     "zod": "^3.24.3"
   },
   "devDependencies": {
@@ -23,6 +27,9 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "prisma": {
+    "schema": "node_modules/@bitte-ai/data/prisma/schema.prisma"
   },
   "author": "",
   "license": "ISC"
