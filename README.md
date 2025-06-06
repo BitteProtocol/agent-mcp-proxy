@@ -17,3 +17,9 @@ The Bitte MCP Proxy automatically converts every agent deployed on the [Bitte pl
 ## Quick Start
 
 ### MCP Endpoint
+
+```
+https://mcp.bitte.ai/mcp?agentId={AGENT_ID}
+```
+
+Find `AGENT_ID` in https://bitte.ai/agents
