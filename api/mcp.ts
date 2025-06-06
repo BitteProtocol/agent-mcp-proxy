@@ -33,7 +33,7 @@ const getAgentData = async (agentId: string): Promise<AgentData> => {
         }
 
         const { name, description, assistant } = agentDataJson["x-mb"];
-        
+
         if (!assistant || !assistant.instructions) {
             throw new Error('Invalid agent data: missing assistant instructions');
         }
@@ -49,8 +49,8 @@ const getAgentData = async (agentId: string): Promise<AgentData> => {
             throw new Error('Failed to fetch OpenAPI tools');
         }
 
-        return { 
-            tools: openApiTools, 
+        return {
+            tools: openApiTools,
             name: name || 'Unknown Agent',
             description: description || 'No description available',
             instructions: instructions || 'No instructions available'
@@ -278,8 +278,9 @@ const createHandler = async (args: any) => {
                         toolName: name,
                         callTimestamp: new Date(),
                         id: `mcp-${args.agentId}-${name}-${Date.now()}`,
-                        args: JSON.stringify(params),
+                        args: params,
                         toolId: `${args.agentId}-${name}`,
+                        result: responseData,
                     })
 
                     return {

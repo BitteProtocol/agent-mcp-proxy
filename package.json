@@ -9,7 +9,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@bitte-ai/data": "^0.0.3",
+    "@bitte-ai/data": "0.1.0-main-27fa638",
     "@modelcontextprotocol/sdk": "^1.11.4",
     "@prisma/client": "6.9.0",
     "@vercel/ai-sdk-gateway": "^0.1.3",
